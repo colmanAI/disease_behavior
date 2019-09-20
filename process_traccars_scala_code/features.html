@@ -1,0 +1,413 @@
+<!doctype html>
+<html>
+<head>
+    <script src='https://d3js.org/d3.v4.min.js'></script>
+</head>
+<body>
+<div style="position: fixed; margin-top: -5px;">
+    <label for="graphType">graph:</label>
+    <select id="graphType">
+        <option>raw</option>
+        <option value="dailyDiff">daily diff</option>
+    </select>
+    <label for="device1">device:</label>
+    <select id='device1'></select>
+    <label for="week1">week:</label>
+    <select id='week1'></select>
+    <label for="feature1">feature:</label>
+    <select id='feature1'></select>
+</div>
+<div>
+    <svg id="graph1" width='6000' height='335'></svg>
+</div>
+<div style="position: fixed; margin-top: -5px;">
+    <label for="device2">device:</label>
+    <select id='device2'></select>
+    <label for="week2">week:</label>
+    <select id='week2'></select>
+    <label for="feature2">feature:</label>
+    <select id='feature2'></select>
+</div>
+<div>
+    <svg id="graph2" width='6000' height='335'></svg>
+</div>
+<script>
+    var graphType = document.getElementById('graphType');
+    var device = [document.getElementById('device1'), document.getElementById('device2')];
+    var week = [document.getElementById('week1'), document.getElementById('week2')];
+    var feature = [document.getElementById('feature1'), document.getElementById('feature2')];
+    var graph = [d3.select('svg#graph1'), d3.select('svg#graph2')];
+
+    var margin = {top: 20, right: 20, bottom: 65, left: 65};
+    var width = [];
+    var height = +graph[0].attr('height') - margin.top - margin.bottom;
+    var g = [
+      graph[0].append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')'),
+      graph[1].append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')')
+      ];
+
+    var x = [];
+    var y = [d3.scaleLinear().rangeRound([height, 0]), d3.scaleLinear().rangeRound([height, 0])];
+
+//    var line = d3.line()
+//      .x[i](function(d) { return x[i](d.date); })
+//      .y[i](function(d) { return y[i](extractFeature(d)); });
+
+    var rawData;
+    var data = [];
+    var xhr = new XMLHttpRequest();
+
+    var prepareData = function(i) {
+      data[i] = [];
+
+      var deviceData = rawData[device[i].value];
+      var weekData = deviceData.weeks[week[i].value];
+      for(var d in weekData.days) {
+        if(weekData.days.hasOwnProperty(d)) {
+          var dayData = weekData.days[d];
+
+          switch(graphType.value) {
+            case 'dailyDiff':
+              data[i].push({
+                date: new Date(dayData.date),
+                totalDistance: dayData.totalDistance
+              });
+              break;
+
+            case 'raw':
+              for (var di in dayData.data) {
+                if (dayData.data.hasOwnProperty(di)) {
+                  var datum = dayData.data[di];
+
+                  data[i].push({
+                    date: new Date(datum.timestamp),
+                    speed: datum.speed,
+                    distance: datum.distance
+                  });
+                }
+              }
+              break;
+          }
+        }
+      }
+
+      data[i].sort(function(a, b) { return a.date - b.date; });
+    };
+
+    var extractFeature = function (i, d, noClip) {
+      var featureName = feature[i].value;
+      var value = d[featureName];
+      if (!noClip) {
+        switch (featureName) {
+          case 'speed':
+            value = Math.min(100, value);
+            break;
+          case 'distance':
+            value = Math.min(2000, value);
+            break;
+        }
+      }
+      return value;
+    };
+
+    var extractDayColor = function(d) {
+      switch(d.date.getDay()) {
+        case 0: return '#339966';
+        case 1: return '#663333';
+        case 2: return '#003333';
+        case 3: return '#990066';
+        case 4: return '#333399';
+        case 5: return '#ff6633';
+        case 6: return '#003366';
+      }
+    };
+
+    var deviceChangeHandler = function(i) {
+      if(i == 0) {
+        updateWeeks(i);
+        prepareData(i);
+        for(var j = 1; j < device.length; ++j) {
+          device[j].value = device[0].value;
+          updateWeeks(j);
+        }
+        weekChangeHandler(i);
+      } else {
+        updateWeeks(i);
+        weekChangeHandler(i);
+      }
+    };
+
+    var updateWeeks = function(i) {
+      while(week[i].children.length)
+        week[i].removeChild(week[i].children[0]);
+      for(var w in rawData[device[i].value].weeks) {
+        if(rawData[device[i].value].weeks.hasOwnProperty(w)) {
+          var weekData = rawData[device[i].value].weeks[w];
+          var option = document.createElement('option');
+          option.value = w;
+          var minDay = new Date(weekData.minDay);
+          var maxDay = new Date(weekData.maxDay);
+          option.innerText = w + " (" + (minDay.getDate() - minDay.getDay()) + "/" + (minDay.getMonth()+1) + "/" + minDay.getFullYear() + " - " + (maxDay.getDate() + 6 - maxDay.getDay()) + "/" + (maxDay.getMonth()+1) + "/" + minDay.getFullYear() + ")";
+          week[i].appendChild(option);
+        }
+      }
+    };
+
+    var weekChangeHandler = function(i) {
+      if(i == 0) {
+        prepareData(i);
+        for(var j = 1; j < week.length; ++j) {
+          var next = Array.prototype.find.call(week[j].children, function(opt){ return opt.value > week[0].value });
+          if(next) {
+            week[j].value = next.value;
+          } else {
+            week[j].value = week[j].lastChild.value
+          }
+          prepareData(j);
+        }
+        showGraphs();
+      } else {
+        prepareData(i);
+        showGraphs();
+      }
+    };
+
+    var updateFeatures = function(i) {
+      while(feature[i].children.length)
+        feature[i].removeChild(feature[i].children[0]);
+      for(var k in data[i][0]) {
+        if(k != 'date' && data[i][0].hasOwnProperty(k)) {
+          var option = document.createElement('option');
+          option.innerText = k;
+          if(graphType.value == 'raw' && k == 'distance') {
+            option.setAttribute('selected', 'selected');
+          }
+          feature[i].appendChild(option);
+        }
+      }
+    };
+
+    var featureChangeHandler = function(i) {
+      if(i == 0) {
+        prepareData(i);
+        for(var j = 1; j < feature.length; ++j) {
+          feature[j].value = feature[0].value;
+          prepareData(j);
+        }
+        showGraphs();
+      } else {
+        prepareData(i);
+        showGraphs();
+      }
+    };
+
+    var showGraphs = function() {
+      for(var i in data) {
+        (function(i) {
+          g[i].selectAll('*').remove();
+
+          switch (graphType.value) {
+            case 'raw':
+              graph[i].attr('width', 6000);
+              break;
+            case 'dailyDiff':
+              graph[i].attr('width', 600);
+              break;
+          }
+
+          width[i] = +graph[0].attr('width') - margin.left - margin.right;
+          x[i] = d3.scaleTime().rangeRound([0, width[i]]);
+
+          x[i].domain(d3.extent(data[i], function (d) {
+            return d.date;
+          })).nice(d3.timeWeek, 1);
+
+          var yExtent = [Infinity, -Infinity];
+          for (var j in data) {
+            var extent = d3.extent(data[j], function (d) {
+              return extractFeature(j, d);
+            });
+            yExtent[0] = Math.min(yExtent[0], extent[0]);
+            yExtent[1] = Math.max(yExtent[1], extent[1]);
+          }
+          y[i].domain(yExtent);
+
+          var axisMargin = 0;
+
+          if (graphType.value == 'raw') {
+            g[i].append('g')
+              .attr('transform', 'translate(0,' + (height + axisMargin) + ')')
+              .call(d3.axisBottom(x[i]).ticks(d3.timeMinute.every(5)).tickFormat(d3.timeFormat('')))
+              .select('.domain')
+              .remove();
+            axisMargin += 5;
+
+            g[i].append('g')
+              .attr('transform', 'translate(0,' + (height + axisMargin) + ')')
+              .call(d3.axisBottom(x[i]).ticks(d3.timeMinute.every(30)).tickFormat(d3.timeFormat('')))
+              .select('.domain')
+              .remove();
+            g[i].append('g')
+              .attr('transform', 'translate(0,' + (height + axisMargin) + ')')
+              .call(d3.axisBottom(x[i]).ticks(d3.timeHour.every(1)).tickFormat(d3.timeFormat('%H:00')))
+              .select('.domain')
+              .remove();
+            axisMargin += 20;
+          }
+          g[i].append('g')
+            .attr('transform', 'translate(0,' + (height + axisMargin) + ')')
+            .call(d3.axisBottom(x[i]).ticks(d3.timeDay.every(1)).tickFormat(d3.timeFormat('%b %d')))
+            .select('.domain')
+            .remove();
+          axisMargin += 20;
+
+          g[i].append('g')
+            .attr('transform', 'translate(0,' + (height + axisMargin) + ')')
+            .call(d3.axisBottom(x[i]).ticks(d3.timeDay.every(1)).tickFormat(d3.timeFormat('%a')))
+            .select('.domain')
+            .remove();
+
+          g[i].append('g')
+            .attr('transform', 'translate(-5, 0)')
+            .call(d3.axisLeft(y[i]));
+
+//      g.append('path')
+//        .datum(data[i])
+//        .attr('fill', 'none')
+//        .attr('stroke', extractDayColor)
+//        .attr('stroke-linejoin', 'round')
+//        .attr('stroke-linecap', 'round')
+//        .attr('stroke-width', 1.5)
+//        .attr('d', line);
+
+          g[i].selectAll('rect').data(data[i]).enter()
+            .append('rect')
+            .attr('transform', function (d) {
+              return 'translate(' + (x[i](d.date) - .5) + ',' + y[i](extractFeature(i, d)) + ')';
+            })
+            .attr('width', 1)
+            .attr('height', function (d) {
+              return height - y[i](extractFeature(i, d));
+            })
+            .attr('fill', extractDayColor)
+            .attr('stroke', 'none')
+            .style('opacity', .4);
+
+          g[i].selectAll('circle').data(data[i]).enter()
+            .append('circle')
+            .attr('fill', extractDayColor)
+            .attr('stroke', extractDayColor)
+            .attr('stroke-width', 1.5)
+            .attr('r', 1)
+            .attr('cx', function (d) {
+              return x[i](d.date);
+            })
+            .attr('cy', function (d) {
+              return y[i](extractFeature(i, d));
+            })
+            .style('opacity', function (d) {
+              return extractFeature(i, d) ? 1 : .4;
+            });
+
+          var focus = graph[i].append('g')
+            .style('display', 'none');
+
+          focus.append('circle')
+            .attr('fill', 'none')
+            .attr('stroke', 'steelblue')
+            .attr('r', 4.5);
+
+          focus.append('text')
+            .attr('x', 0)
+            .attr('y', '1em')
+            .style('text-shadow', '2px 2px 2px white, 1px 0 2px white, 0 -1px 2px white, -1px 0 2px white');
+
+          focus.append('path')
+            .attr('fill', 'none')
+            .attr('stroke', '#999')
+            .attr('stroke-width', 1)
+            .attr('d', 'M 0 0 L 0 ' + height);
+
+          graph[i].append('rect')
+            .attr('transform', 'translate(' + (margin.left - 5) + ',' + margin.top + ')')
+            .attr('fill', 'none')
+            .attr('width', width[i])
+            .attr('height', height)
+            .style('pointer-events', 'all')
+            .on('mouseover', function () {
+              focus.style('display', null);
+            })
+            .on('mouseout', function () {
+              focus.style('display', 'none');
+            })
+            .on('mousemove', mousemove);
+
+          function mousemove() {
+            var x0 = x[i].invert(d3.mouse(this)[0]);
+            var b = d3.bisector(function (d) {
+              return d.date;
+            }).left(data[i], x0, 1);
+            var d;
+            if (b === data[i].length) {
+              d = data[i][b - 1];
+            } else {
+              var d0 = data[i][b - 1];
+              var d1 = data[i][b];
+              d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+            }
+
+            focus
+              .attr('transform', 'translate(' + (x[i](d.date) + margin.left) + ',' + margin.top + ')');
+            focus.select('circle')
+              .attr('transform', 'translate(' + 0 + ',' + y[i](extractFeature(i, d)) + ')');
+            focus.select('text')
+              .attr('transform', 'translate(' + 0 + ',' + y[i](extractFeature(i, d)) + ')')
+              .text(Math.round(extractFeature(i, d, true) * 100) / 100);
+          }
+        })(i);
+      }
+    };
+
+    xhr.open('GET', 'features.json', true);
+    xhr.onreadystatechange = function () {
+      var i;
+      if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+        rawData = JSON.parse(xhr.responseText);
+
+        for (var d in rawData) {
+          if (rawData.hasOwnProperty(d)) {
+            var deviceData = rawData[d];
+            for(i = 0; i < device.length; ++i) {
+              var option = document.createElement('option');
+              option.value = d;
+              option.innerText = d + ' ' + deviceData.email;
+              device[i].appendChild(option);
+            }
+          }
+        }
+
+        graphType.onchange = function () {
+          for(i = 0; i < device.length; ++i) {
+            prepareData(i);
+            updateFeatures(i);
+          }
+          showGraphs();
+        };
+
+        for(i = 0; i < device.length; ++i) {
+          device[i].onchange = (function(i) { return function() { deviceChangeHandler(i); } })(i);
+          week[i].onchange = (function(i) { return function() { weekChangeHandler(i); } })(i);
+          feature[i].onchange = (function(i) { return function() { featureChangeHandler(i); } })(i);
+
+          updateWeeks(i);
+          prepareData(i);
+          updateFeatures(i);
+        }
+        weekChangeHandler(0);
+        showGraphs();
+      }
+    };
+    xhr.send();
+</script>
+</body>
+</html>
