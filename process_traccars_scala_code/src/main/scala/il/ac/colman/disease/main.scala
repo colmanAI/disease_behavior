@@ -122,9 +122,11 @@ object main extends App {
           val home = basicData(lastDataPoint.deviceId).home
           val nightLocation = basicData(lastDataPoint.deviceId).dailyData(lastDataPoint.dateTime.toLocalDate).nightLocation
           val sleptHome = nightLocation.distanceBetweenEdges(home) <= HOME_RADIUS
+          val averageWalkingSpeed = if (totalWalkingDistance != 0) totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
+          val averageDrivingSpeed = if(totalDrivingDistance != 0) totalDrivingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
           val dailyData = FullDailyData(trips, totalDistance, totalWalkingDistance, totalDrivingDistance, totalDistance / trips,
             maxTripDiameter, totalDuration, totalWalkingDuration, totalDrivingDuration, totalDuration.dividedBy(trips), maxTripDuration,
-            totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND), totalDrivingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND), sleptHome)
+            averageWalkingSpeed, averageDrivingSpeed, sleptHome)
           extract(rawData, lastDataPoint, participantDataAccumulator, dailyDataAccumulator + (lastDataPoint.dateTime.toLocalDate -> dailyData),
             0, 0.0, 0.0, 0.0, 0.0, 0.0, Duration.ZERO, Duration.ZERO, Duration.ZERO, Duration.ZERO, 0.0, 0.0, 0.0, Duration.ZERO,
             Duration.ZERO, Duration.ZERO, 0.0)
@@ -220,9 +222,11 @@ object main extends App {
           val home = basicData(lastDataPoint.deviceId).home
           val nightLocationOpt = basicData(lastDataPoint.deviceId).dailyData.get(lastDataPoint.dateTime.toLocalDate).map(_.nightLocation)
           val sleptHome = nightLocationOpt.exists(_.distanceBetweenEdges(home) <= HOME_RADIUS)
+          val averageWalkingSpeed = if (totalWalkingDistance != 0) totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
+          val averageDrivingSpeed = if(totalWalkingDistance != 0) totalWalkingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
           val dailyData = FullDailyData(trips, totalDistance, totalWalkingDistance, totalDrivingDistance, totalDistance / trips,
             maxTripDiameter, totalDuration, totalWalkingDuration, totalDrivingDuration, totalDuration.dividedBy(trips),
-            maxTripDuration, totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND), totalWalkingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND), sleptHome)
+            maxTripDuration, averageWalkingSpeed, averageDrivingSpeed, sleptHome)
           extract(rawData.tail, rawData.head, participantDataAccumulator, dailyDataAccumulator + (lastDataPoint.dateTime.toLocalDate -> dailyData),
             0, 0.0, 0.0, 0.0, 0.0, 0.0, Duration.ZERO, Duration.ZERO, Duration.ZERO, Duration.ZERO, 0.0, 0.0, 0.0, Duration.ZERO, Duration.ZERO, Duration.ZERO, 0.0)
         } else {
@@ -235,9 +239,11 @@ object main extends App {
         val sleptHome = nightLocationOpt.exists(_.distanceBetweenEdges(home) <= HOME_RADIUS)
         val totalDistance = totalWalkingDistance + totalDrivingDistance
         val totalDuration = totalWalkingDuration.plus(totalDrivingDuration)
+        val averageWalkingSpeed = if (totalWalkingDistance != 0) totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
+        val averageDrivingSpeed = if(totalWalkingDistance != 0) totalWalkingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND) else 0.0
         val dailyData = FullDailyData(trips, totalDistance, totalWalkingDistance, totalDrivingDistance, totalDistance / trips,
           maxTripDiameter, totalDuration, totalWalkingDuration, totalDrivingDuration, totalDuration.dividedBy(trips), maxTripDuration,
-          totalWalkingDistance / (totalWalkingDuration.toNanos.toDouble / NANOS_IN_SECOND), totalWalkingDistance / (totalDrivingDuration.toNanos.toDouble / NANOS_IN_SECOND), sleptHome)
+          averageWalkingSpeed, averageDrivingSpeed, sleptHome)
         extract(rawData, rawData.head, participantDataAccumulator + (lastDataPoint.deviceId -> FullParticipantData(lastDataPoint.deviceId, dailyDataAccumulator + (lastDataPoint.dateTime.toLocalDate -> dailyData))),
           Map.empty, 0, 0.0, 0.0, 0.0, 0.0, 0.0, Duration.ZERO, Duration.ZERO, Duration.ZERO, Duration.ZERO, 0.0, 0.0, 0.0,
           Duration.ZERO, Duration.ZERO, Duration.ZERO, 0.0)
