@@ -3,8 +3,8 @@ import java.time.ZonedDateTime
 import java.time.temporal.{ChronoUnit, WeekFields}
 import java.util.Locale
 
-import il.ac.colman.disease.{DAO, DataPoint}
-import org.opensextant.geodesy.Geodetic2DArc
+//import il.ac.colman.disease.{DAO, DataPoint}
+//import org.opensextant.geodesy.Geodetic2DArc
 
 /**
   * Created by nirle on 5/7/2017.
@@ -12,8 +12,8 @@ import org.opensextant.geodesy.Geodetic2DArc
 object featureExtractor extends App {
   import scala.util.parsing.json._
 
-  var lastDataPoint: DataPoint = null
-  val dataPoints: Seq[DataPoint] = DAO.loadDataPoints()
+  var lastDataPoint: il.ac.colman.disease.DataPoint = null
+  val dataPoints: Seq[il.ac.colman.disease.DataPoint] = il.ac.colman.disease.DAO.loadDataPoints()
   val data =
     JSONObject(dataPoints.groupBy(dp => dp.deviceId).map{ case (deviceId, byDevice) => deviceId.toString -> {
       JSONObject(Map(

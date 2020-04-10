@@ -2,7 +2,7 @@ import java.io.{FileWriter, PrintWriter}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
-import il.ac.colman.disease.{DAO, DataPoint}
+//import il.ac.colman.disease.{DAO, DataPoint}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -17,7 +17,7 @@ object locationExtractor extends App {
   val visitTimeThreshold = Duration.of(15, ChronoUnit.MINUTES)
   val radiusThreshold = 400
 
-  val dataPoints: Seq[DataPoint] = DAO.loadDataPoints()
+  val dataPoints: Seq[il.ac.colman.disease.DataPoint] = il.ac.colman.disease.DAO.loadDataPoints()
 
   val visits: mutable.Map[Long, ListBuffer[Visit]] = mutable.Map.empty
   val locations: mutable.Map[Long, ListBuffer[Location]] = mutable.Map.empty
