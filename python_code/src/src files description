@@ -1,0 +1,18 @@
+
+description of all packages and scripts in src directory.
+====================================================================================================
+
+packages and their content
+
+-> cursor_data: <missing>
+-> databases: excel tables with info about participants that have traccar & questionnaires.
+-> dump: all traccar data (from all experiences).
+-> merge_traccar_with_questionnaire: <missing>
+-> organize_data: classes (data structures) to organize the data in.
+-> participants_inspection: <missing>
+-> questionnaires_analysis: <missing>
+-> statistics_calcs
+
+====================================================================================================
+
+scrips info
